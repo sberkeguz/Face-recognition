@@ -35,6 +35,14 @@ public class Yuztanimauygulamasi extends JFrame {
     }
 
     public void KamerayiBaslat() {
-        camera = new
+        //0 ana kamera
+        camera = new VideoCapture(0);
+        kameraCalisiyor=true;
+
+        //while döngüsü için yeni arayuz
+        new Thread(() -> {
+            Mat frame = new Mat();
+        
+    
     }
 }
