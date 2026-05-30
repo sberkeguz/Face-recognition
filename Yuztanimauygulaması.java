@@ -41,8 +41,23 @@ public class Yuztanimauygulamasi extends JFrame {
 
         //while döngüsü için yeni arayuz
         new Thread(() -> {
+            //matris (sayı tablosu oluyormuş)
             Mat frame = new Mat();
-        
+        while (kameraCalisiyor && camera.read(frame)){
+            //gelen foto boş değiles
+            if(!frame.empty){
+                //matrisi resme çevir
+                BufferedImage Resim = mat2BufferedImage(frame);
+
+                //yazı sil resim koy
+                kameraEkrani.setIcon(new ImageIcon(Resim));
+            }
+        }
     
-    }
+    }).start();
+}
+
+
+public BufferedImage mat2BufferedImage(mat m){
+    
 }
