@@ -57,7 +57,26 @@ public class Yuztanimauygulamasi extends JFrame {
     }).start();
 }
 
+public void kamerayiKapat(){
+    kameraCalisiyor=false;
+    //kamera var mı ve camera.isOpened() kamera açık mı
+    if(camera != null && camera.isOpened()){
+        //kamerayı kapat
+        camera.release();
+    }
+}
 
+
+
+
+
+//Buffered image == ara belleğe alınmış fotoğraf
+//matristen resme
 public BufferedImage mat2BufferedImage(mat m){
-    
+    //varsayılan gri 
+    int type = BufferedImage.TYPE_BYTE_GRAY;
+    if(m.channels()>1){
+        type =BufferedImage.TYPE_3BYTE_BGR
+    }
+
 }
