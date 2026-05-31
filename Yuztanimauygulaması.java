@@ -75,8 +75,22 @@ public void kamerayiKapat(){
 public BufferedImage mat2BufferedImage(mat m){
     //varsayılan gri 
     int type = BufferedImage.TYPE_BYTE_GRAY;
+    //eğer fotoğraf renkliyse maviyeşik kırmızı kullan
+    //channels>1 === çok katmanlı/kanallıysa.
     if(m.channels()>1){
-        type =BufferedImage.TYPE_3BYTE_BGR
+        type =BufferedImage.TYPE_3BYTE_BGR;
     }
 
+        // katman sütun satır
+    int bufferSize = m.channels() *m.cols()*m.rows();
+    // boş dizi
+    byte[] b = new byte[bufferSize];
+    //(0,0)== ilk koordinat verilerin aktarılacağı
+    //b boş dizi
+    //m.get= m in verilerini al 
+    //m in verilerini 0,0 noktasından başlayarak b dizisine doldurr
+    m.get(0,0,b);
+
+    BufferedImage image = new BufferedImage
 }
+
