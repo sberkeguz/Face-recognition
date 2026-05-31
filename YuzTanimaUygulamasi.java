@@ -2,10 +2,11 @@ import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.videoio.VideoCapture;
 import javax.swing.*;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 
-public class Yuztanimauygulamasi extends JFrame {
+public class YuzTanimaUygulamasi extends JFrame {
 
     private JLabel kameraEkrani;
     //kamera 
@@ -13,7 +14,7 @@ public class Yuztanimauygulamasi extends JFrame {
     //kamera durumu
     private boolean kameraCalisiyor = false; 
 
-    public Yuztanimauygulamasi(){
+    public YuzTanimaUygulamasi(){
         //Opencv ekleme
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
@@ -25,10 +26,30 @@ public class Yuztanimauygulamasi extends JFrame {
         //ekranın ortasına açış
         setLocationRelativeTo(null);
         
+        //Ekranı bölgelere ayırmak
+        setLayout(new BorderLayout());
+
         //SingsConstants.center ===> metni ortaya yazmak için
-        kameraEkrani = ne JLabel("Kamera başlatılamd",SwingConstants.CENTER)
+        kameraEkrani = new JLabel("Kamera başlatılamadı...", SwingConstants.CENTER);
         
-        add(kameraEkrani);
+        //ekranın merkezine kamera
+        add(kameraEkrani, BorderLayout.CENTER);
+
+        //butonlar
+        JPanel altPanel = new JPanel();
+        //butonları yan yana dizer
+        altPanel.setLayout(new FlowLayout());
+        //arka plan rengi
+        altPanel.setBackground(Color.DARK_GRAY); 
+
+        JButton btnKaydet = new JButton("Yüzümü Kaydet");
+        JButton btnKilitAc = new JButton("Klasör Kilidini Aç");
+
+        //Butonları eklemek
+        altPanel.add(btnKaydet);
+        altPanel.add(btnKilitAc);
+        add(altPanel, BorderLayout.SOUTH);
+       
 
         //kamerayı açmak 
         KamerayiBaslat();
@@ -45,7 +66,7 @@ public class Yuztanimauygulamasi extends JFrame {
             Mat frame = new Mat();
         while (kameraCalisiyor && camera.read(frame)){
             //gelen foto boş değiles
-            if(!frame.empty){
+            if(!frame.empty()){
                 //matrisi resme çevir
                 BufferedImage Resim = mat2BufferedImage(frame);
 
@@ -66,13 +87,9 @@ public void kamerayiKapat(){
     }
 }
 
-
-
-
-
 //Buffered image == ara belleğe alınmış fotoğraf
 //matristen resme
-public BufferedImage mat2BufferedImage(mat m){
+public BufferedImage mat2BufferedImage(Mat m){
     //varsayılan gri 
     int type = BufferedImage.TYPE_BYTE_GRAY;
     //eğer fotoğraf renkliyse maviyeşik kırmızı kullan
@@ -98,12 +115,13 @@ public BufferedImage mat2BufferedImage(mat m){
     return image;
 }
 
-
-
-
+//java arayğz kütüphanesi
 public static void main(String[] args) {
+    //invoke later sonra çalıştır
         SwingUtilities.invokeLater(() -> {
             YuzTanimaUygulamasi app = new YuzTanimaUygulamasi();
-            app.setVisible(true);});
+            //ekranda göster
+            app.setVisible(true);
+        });
     }
 }
