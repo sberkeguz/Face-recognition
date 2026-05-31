@@ -91,6 +91,19 @@ public BufferedImage mat2BufferedImage(mat m){
     //m in verilerini 0,0 noktasından başlayarak b dizisine doldurr
     m.get(0,0,b);
 
-    BufferedImage image = new BufferedImage
+    BufferedImage image = new BufferedImage(m.cols(), m.rows(), type);
+    final byte[] targetPixels =((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+    //Dizi kopyalama
+    System.arraycopy(b,0,targetPixels,0,b.length);
+    return image;
 }
 
+
+
+
+public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            YuzTanimaUygulamasi app = new YuzTanimaUygulamasi();
+            app.setVisible(true);});
+    }
+}
