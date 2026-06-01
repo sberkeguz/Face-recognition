@@ -29,7 +29,7 @@ public class YuzTanimaUygulamasi extends JFrame {
     // Yüzü ezberlemek ve kim olduğunu anlamak
     private Mat ortalamaHistogram = null;
 
-    //
+    
     private volatile boolean kayitYapiliyor = false;
     // sayac 
     private volatile int kayitSayaci = 0;
@@ -157,7 +157,8 @@ public class YuzTanimaUygulamasi extends JFrame {
         File[] dosyalar = klasor.listFiles();
         //veya = ||
         if (dosyalar == null || dosyalar.length == 0) {
-            // FIX: Ayrı thread'den dialog açmak için invokeLater gerekli
+
+
             SwingUtilities.invokeLater(() ->
                     JOptionPane.showMessageDialog(this, "Once yüzünü kaydetmelisin")
             );
@@ -173,7 +174,8 @@ public class YuzTanimaUygulamasi extends JFrame {
             if (!resim.empty()) {
                 Mat hist = yuzHistogramiHesapla(resim);
                 Core.add(toplamHist, hist, toplamHist);
-                // FIX: Mat nesnelerini serbest bırak (bellek sızıntısını önle)
+
+
                 hist.release();
                 gecerliSayac++;
             }
@@ -182,18 +184,18 @@ public class YuzTanimaUygulamasi extends JFrame {
 
         if (gecerliSayac == 0) {
             SwingUtilities.invokeLater(() ->
-                    JOptionPane.showMessageDialog(this, "Gecerli yüz fotoğrafı bulunamadı!")
+                    JOptionPane.showMessageDialog(this, "doğru yüz fotoğrafı bulunamadı")
             );
             toplamHist.release();
             return;
         }
 
-        // Ortalama histogram hesapla (tüm eğitim yüzlerinin ortalaması)
+
         ortalamaHistogram = new Mat();
         Core.divide(toplamHist, Scalar.all(gecerliSayac), ortalamaHistogram);
         toplamHist.release();
 
-        // FIX: Modeli kaydet, uygulama kapanıp açılsa bile model silinmez
+
         try {
             histogramKaydet(ortalamaHistogram);
         } catch (IOException ex) {
@@ -202,12 +204,11 @@ public class YuzTanimaUygulamasi extends JFrame {
 
         kilitAcmaModu = true;
         basariliTanimaSayaci = 0;
-        // FIX: Ayrı thread'den dialog açmak için invokeLater gerekli
+
         SwingUtilities.invokeLater(() ->
                 JOptionPane.showMessageDialog(this, "Yüzünüz öğrenildi")
         );
     }
-    // ---------------------------------------------------------------------------
 
     public void KamerayiBaslat() {
         //0 ana kamera
@@ -267,7 +268,8 @@ public class YuzTanimaUygulamasi extends JFrame {
                                 Imgproc.rectangle(frame, yuzDikdortgeni.tl(), yuzDikdortgeni.br(), new Scalar(0, 255, 0), 2);
                                 Imgproc.putText(frame, "b-erke Tanindi", yuzDikdortgeni.tl(), Imgproc.FONT_HERSHEY_SIMPLEX, 1, new Scalar(0, 255, 0), 2);
                             } else {
-                                basariliTanimaSayaci = 0; // Tanıyamazsa veya başkasıysa sayacı sıfırla
+                                // Tanıyamazsa veya başkasıysa sayacı sıfırla
+                                basariliTanimaSayaci = 0; 
                                 Imgproc.rectangle(frame, yuzDikdortgeni.tl(), yuzDikdortgeni.br(), new Scalar(0, 0, 255), 2);
                                 Imgproc.putText(frame, "Yabanci", yuzDikdortgeni.tl(), Imgproc.FONT_HERSHEY_SIMPLEX, 1, new Scalar(0, 0, 255), 2);
                             }
@@ -358,3 +360,4 @@ public class YuzTanimaUygulamasi extends JFrame {
 /*
 java -cp ".;lib\opencv-4120.jar" "-Djava.library.path=." YuzTanimaUygulamasi
 */
+""
