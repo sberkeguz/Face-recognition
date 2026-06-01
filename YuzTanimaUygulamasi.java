@@ -12,8 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
  
 public class YuzTanimaUygulamasi extends JFrame {
- 
-    //Opencv ekleme olmadan çalışmaz
+
     static {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
     }
@@ -21,32 +20,20 @@ public class YuzTanimaUygulamasi extends JFrame {
     private static final String DB_URL = "jdbc:sqlite:facereco.db";
  
     private JLabel kameraEkrani;
-    //kamera
     private VideoCapture camera;
-    //kamera durumu
     private volatile boolean kameraCalisiyor = false;
- 
-    //yüzü algılıyor/buluyo
     private CascadeClassifier yuzDedektoru;
-    // Yüzü ezberlemek ve kim olduğunu anlamak
     private Mat ortalamaHistogram = null;
- 
     private volatile boolean kayitYapiliyor = false;
-    // sayac
-    private volatile int kayitSayaci = 0;
-    // kayıt yapılan kullanıcının id'si
+    private volatile int kayitSayaci = 0:
     private volatile int aktifKullaniciId = -1;
     private volatile String aktifKullaniciAd = "";
- 
     private volatile boolean kilitAcmaModu = false;
-    // ardarda tanıma
+    
     private volatile int basariliTanimaSayaci = 0;
- 
     public YuzTanimaUygulamasi() {
- 
+
         yuzDedektoru = new CascadeClassifier("haarcascade_frontalface_default.xml");
- 
-        // Tabloları oluştur (ilk açılışta)
         tablolarıOlustur();
  
         try {
@@ -54,13 +41,12 @@ public class YuzTanimaUygulamasi extends JFrame {
         } catch (IOException e) {
 
         }
- 
-        //Pencere ayarıları
+
         setTitle("Yüz Tanıma ve Veri Toplama");
         setSize(800, 600);
-        //uygulamayı kapatmak
+
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        //ekranın ortasına açış
+
         setLocationRelativeTo(null);
  
         addWindowListener(new java.awt.event.WindowAdapter() {
@@ -69,27 +55,22 @@ public class YuzTanimaUygulamasi extends JFrame {
                 kamerayiKapat();
             }
         });
- 
-        //Ekranı bölgelere ayırmak
+
         setLayout(new BorderLayout());
- 
-        //SingsConstants.center ===> metni ortaya yazmak için
+
         kameraEkrani = new JLabel("Kamera baslatilmadi...", SwingConstants.CENTER);
  
-        //ekranın merkezine kamera
+
         add(kameraEkrani, BorderLayout.CENTER);
  
-        //butonlar
+
         JPanel altPanel = new JPanel();
-        //butonları yan yana dizer
         altPanel.setLayout(new FlowLayout());
-        //arka plan rengi
         altPanel.setBackground(Color.DARK_GRAY);
  
         JButton btnKaydet = new JButton("Yüzümü Kaydet");
         JButton btnKilitAc = new JButton("Klasör Kilidini Aç");
- 
-        //Yüzümü kaydet butonuna bastığımda olacaklar
+
         btnKaydet.addActionListener(e -> {
             String kullaniciAdi = JOptionPane.showInputDialog(this, "Adinizi girin:");
  
@@ -107,24 +88,24 @@ public class YuzTanimaUygulamasi extends JFrame {
             }
  
             File klasor = new File("dataset");
-            //eğer klasör yoksa make directory ile oluşturuyoruz
+
             if (!klasor.exists()) {
-                // Dataset klasörü yoksa oluşturur
+
                 klasor.mkdir();
             }
  
-            // Kameraya kayıt emrini verir
+
             kayitYapiliyor = true;
             kayitSayaci = 0;
             JOptionPane.showMessageDialog(this, kullaniciAdi + " icin kayit basliyor!");
         });
  
-        //Klasör kilidini aç butonuna bastığında
+
         btnKilitAc.addActionListener(e -> {
             new Thread(() -> modeliEgit()).start();
         });
  
-        //Butonları eklemek
+
         altPanel.add(btnKaydet);
         altPanel.add(btnKilitAc);
         add(altPanel, BorderLayout.SOUTH);
@@ -172,7 +153,7 @@ public class YuzTanimaUygulamasi extends JFrame {
         String dosyaYolu = "dataset/yuz_" + fotoNo + ".jpg";
         Imgcodecs.imwrite(dosyaYolu, yuz);
  
-        // Her 10 fotoğrafta bir DB'ye kaydet (performans için)
+
         if (fotoNo % 10 == 0) {
             try {
                 File dosya = new File(dosyaYolu);
@@ -338,7 +319,7 @@ public class YuzTanimaUygulamasi extends JFrame {
                                 }
                             }
                         } else if (!kayitYapiliyor) {
-                            Imgproc.rectangle(frame, yuzDikdortgeni.tl(), yuzDikdortgeni.br(), new Scalar(255, 0, 0), 2); // Sadece Mavi çerçeve çizer
+                            Imgproc.rectangle(frame, yuzDikdortgeni.tl(), yuzDikdortgeni.br(), new Scalar(255, 0, 0), 2); 
                         }
  
                         griYuz.release();
@@ -373,7 +354,7 @@ public class YuzTanimaUygulamasi extends JFrame {
         if (m.channels() > 1) {
             type = BufferedImage.TYPE_3BYTE_BGR;
         }
- 
+
 
         int bufferSize = m.channels() * m.cols() * m.rows();
 
