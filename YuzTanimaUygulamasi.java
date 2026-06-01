@@ -7,6 +7,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.*;
 import java.io.*;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,37 +18,37 @@ public class YuzTanimaUygulamasi extends JFrame {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
     }
 
+    // SQLite - kurulum gerektirmez, facereco.db dosyası otomatik oluşur
+    private static final String DB_URL = "jdbc:sqlite:facereco.db";
+
     private JLabel kameraEkrani;
-    //kamera 
+    //kamera
     private VideoCapture camera;
-    //kamera durumu 
+    //kamera durumu
     private volatile boolean kameraCalisiyor = false;
 
     //yüzü algılıyor/buluyo
     private CascadeClassifier yuzDedektoru;
-
     // Yüzü ezberlemek ve kim olduğunu anlamak
     private Mat ortalamaHistogram = null;
 
-    
     private volatile boolean kayitYapiliyor = false;
-    // sayac 
+    // sayac
     private volatile int kayitSayaci = 0;
+    // kayıt yapılan kullanıcının id'si
+    private volatile int aktifKullaniciId = -1;
 
     private volatile boolean kilitAcmaModu = false;
-    // ardarda tanıma 
+    // ardarda tanıma
     private volatile int basariliTanimaSayaci = 0;
 
     public YuzTanimaUygulamasi() {
 
         yuzDedektoru = new CascadeClassifier("haarcascade_frontalface_default.xml");
 
-        //classifier yüklendi mi kontrol et
-        if (yuzDedektoru.empty()) {
-            JOptionPane.showMessageDialog(null, "haarcascade_frontalface_default.xml bulunamadi!");
-        }
+        // Tabloları oluştur (ilk açılışta)
+        tablolarıOlustur();
 
-        
         try {
             ortalamaHistogram = histogramYukle();
         } catch (IOException e) {
@@ -61,7 +62,6 @@ public class YuzTanimaUygulamasi extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         //ekranın ortasına açış
         setLocationRelativeTo(null);
-
 
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
@@ -91,23 +91,35 @@ public class YuzTanimaUygulamasi extends JFrame {
 
         //Yüzümü kaydet butonuna bastığımda olacaklar
         btnKaydet.addActionListener(e -> {
+            String kullaniciAdi = JOptionPane.showInputDialog(this, "Adinizi girin:");
+
+            if (kullaniciAdi == null || kullaniciAdi.trim().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Ad girilmedi, kayit iptal edildi.");
+                return;
+            }
+
+            aktifKullaniciId = kullaniciyiDBKaydet(kullaniciAdi.trim());
+
+            if (aktifKullaniciId == -1) {
+                JOptionPane.showMessageDialog(this, "Veritabani hatasi!");
+                return;
+            }
+
             File klasor = new File("dataset");
             //eğer klasör yoksa make directory ile oluşturuyoruz
             if (!klasor.exists()) {
                 // Dataset klasörü yoksa oluşturur
                 klasor.mkdir();
             }
-            
+
             // Kameraya kayıt emrini verir
             kayitYapiliyor = true;
             kayitSayaci = 0;
-            JOptionPane.showMessageDialog(this, "Kayit basliyor");
+            JOptionPane.showMessageDialog(this, kullaniciAdi + " icin kayit basliyor!");
         });
 
         //Klasör kilidini aç butonuna bastığında
         btnKilitAc.addActionListener(e -> {
-
-
             new Thread(() -> modeliEgit()).start();
         });
 
@@ -120,7 +132,68 @@ public class YuzTanimaUygulamasi extends JFrame {
         KamerayiBaslat();
     }
 
-    //histogram 
+    private Connection baglantiKur() throws SQLException {
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        return DriverManager.getConnection(DB_URL);
+    }
+
+    // İlk açılışta tabloları oluştur
+    private void tablolarıOlustur() {
+        String kullanicilarSQL = "CREATE TABLE IF NOT EXISTS Kullanicilar (id INTEGER PRIMARY KEY AUTOINCREMENT, ad TEXT NOT NULL, kayit_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP)";
+        String fotograflarSQL = "CREATE TABLE IF NOT EXISTS YuzFotograflari (id INTEGER PRIMARY KEY AUTOINCREMENT, kullanici_id INTEGER, fotograf BLOB NOT NULL, tarih DATETIME DEFAULT CURRENT_TIMESTAMP)";
+        try (Connection conn = baglantiKur();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(kullanicilarSQL);
+            stmt.execute(fotograflarSQL);
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private int kullaniciyiDBKaydet(String ad) {
+        String sql = "INSERT INTO Kullanicilar (ad) VALUES (?)";
+        try (Connection conn = baglantiKur();
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setString(1, ad);
+            stmt.executeUpdate();
+            ResultSet rs = stmt.getGeneratedKeys();
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+        return -1;
+    }
+
+    private void fotografiKaydet(Mat yuz, int kullaniciId, int fotoNo) {
+        String dosyaYolu = "dataset/yuz_" + fotoNo + ".jpg";
+        Imgcodecs.imwrite(dosyaYolu, yuz);
+
+        // Her 10 fotoğrafta bir DB'ye kaydet (performans için)
+        if (fotoNo % 10 == 0) {
+            try {
+                File dosya = new File(dosyaYolu);
+                byte[] fotografBytes = new byte[(int) dosya.length()];
+                try (FileInputStream fis = new FileInputStream(dosya)) {
+                    fis.read(fotografBytes);
+                }
+                String sql = "INSERT INTO YuzFotograflari (kullanici_id, fotograf) VALUES (?, ?)";
+                try (Connection conn = baglantiKur();
+                     PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setInt(1, kullaniciId);
+                    stmt.setBytes(2, fotografBytes);
+                    stmt.executeUpdate();
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    //histogram
     private Mat yuzHistogramiHesapla(Mat grayYuz) {
         Mat hist = new Mat();
         List<Mat> matListesi = new ArrayList<>();
@@ -157,15 +230,12 @@ public class YuzTanimaUygulamasi extends JFrame {
         File[] dosyalar = klasor.listFiles();
         //veya = ||
         if (dosyalar == null || dosyalar.length == 0) {
-
-
             SwingUtilities.invokeLater(() ->
-                    JOptionPane.showMessageDialog(this, "Once yüzünü kaydetmelisin")
+                JOptionPane.showMessageDialog(this, "Once yüzünü kaydetmelisin")
             );
             return;
         }
 
-        // Tüm yüz fotoğraflarının histogramını hesapla ve ortalamasını al
         Mat toplamHist = Mat.zeros(256, 1, CvType.CV_32F);
         int gecerliSayac = 0;
 
@@ -174,27 +244,15 @@ public class YuzTanimaUygulamasi extends JFrame {
             if (!resim.empty()) {
                 Mat hist = yuzHistogramiHesapla(resim);
                 Core.add(toplamHist, hist, toplamHist);
-
-
                 hist.release();
                 gecerliSayac++;
             }
             resim.release();
         }
 
-        if (gecerliSayac == 0) {
-            SwingUtilities.invokeLater(() ->
-                    JOptionPane.showMessageDialog(this, "doğru yüz fotoğrafı bulunamadı")
-            );
-            toplamHist.release();
-            return;
-        }
-
-
         ortalamaHistogram = new Mat();
         Core.divide(toplamHist, Scalar.all(gecerliSayac), ortalamaHistogram);
         toplamHist.release();
-
 
         try {
             histogramKaydet(ortalamaHistogram);
@@ -204,9 +262,8 @@ public class YuzTanimaUygulamasi extends JFrame {
 
         kilitAcmaModu = true;
         basariliTanimaSayaci = 0;
-
         SwingUtilities.invokeLater(() ->
-                JOptionPane.showMessageDialog(this, "Yüzünüz öğrenildi")
+            JOptionPane.showMessageDialog(this, "Yüzünüz öğrenildi")
         );
     }
 
@@ -224,8 +281,7 @@ public class YuzTanimaUygulamasi extends JFrame {
                 if (!frame.empty()) {
 
                     MatOfRect yuzler = new MatOfRect();
-                    // Ekranda yüz ara
-                    yuzDedektoru.detectMultiScale(frame, yuzler); 
+                    yuzDedektoru.detectMultiScale(frame, yuzler); // Ekranda yüz ara
 
                     for (Rect yuzDikdortgeni : yuzler.toArray()) {
 
@@ -238,38 +294,32 @@ public class YuzTanimaUygulamasi extends JFrame {
                         // yüzümü kaydet butonuna basıldıysa
                         if (kayitYapiliyor) {
                             kayitSayaci++;
-                            Imgcodecs.imwrite("dataset/yuz_" + kayitSayaci + ".jpg", boyutlandirilmisYuz);
+                            fotografiKaydet(boyutlandirilmisYuz, aktifKullaniciId, kayitSayaci);
 
                             if (kayitSayaci >= 500) {
                                 kayitYapiliyor = false;
-                                SwingUtilities.invokeLater(() -> {
-                                    JOptionPane.showMessageDialog(null, "500 adet fotograf klasore kaydedildi!");
-                                });
+                                SwingUtilities.invokeLater(() ->
+                                    JOptionPane.showMessageDialog(null, "500 fotograf kaydedildi!")
+                                );
                             }
                         }
 
                         // kilidi aça basıldıysa
-                        // FIX: ortalamaHistogram null kontrolü eklendi
                         if (kilitAcmaModu && ortalamaHistogram != null) {
 
-                            // Mevcut yüzü hesapla
                             Mat mevcutHist = yuzHistogramiHesapla(boyutlandirilmisYuz);
-
-                            // Korelasyon 1 ve --1
- 
-
+                            // Korelasyon: 1'e yakın = çok benzer, -1 = hiç benzemiyor
                             double benzerlik = Imgproc.compareHist(mevcutHist, ortalamaHistogram, 0);
                             mevcutHist.release();
 
                             // tanındıysan
                             if (benzerlik > 0.85) {
                                 basariliTanimaSayaci++;
-
                                 Imgproc.rectangle(frame, yuzDikdortgeni.tl(), yuzDikdortgeni.br(), new Scalar(0, 255, 0), 2);
                                 Imgproc.putText(frame, "b-erke Tanindi", yuzDikdortgeni.tl(), Imgproc.FONT_HERSHEY_SIMPLEX, 1, new Scalar(0, 255, 0), 2);
                             } else {
                                 // Tanıyamazsa veya başkasıysa sayacı sıfırla
-                                basariliTanimaSayaci = 0; 
+                                basariliTanimaSayaci = 0;
                                 Imgproc.rectangle(frame, yuzDikdortgeni.tl(), yuzDikdortgeni.br(), new Scalar(0, 0, 255), 2);
                                 Imgproc.putText(frame, "Yabanci", yuzDikdortgeni.tl(), Imgproc.FONT_HERSHEY_SIMPLEX, 1, new Scalar(0, 0, 255), 2);
                             }
@@ -281,9 +331,9 @@ public class YuzTanimaUygulamasi extends JFrame {
                                 basariliTanimaSayaci = 0;
                                 try {
                                     Runtime.getRuntime().exec("explorer.exe .");
-                                    SwingUtilities.invokeLater(() -> {
-                                        JOptionPane.showMessageDialog(null, "Klasor aciliyor.");
-                                    });
+                                    SwingUtilities.invokeLater(() ->
+                                        JOptionPane.showMessageDialog(null, "Klasor aciliyor.")
+                                    );
                                 } catch (Exception ex) {
                                     ex.printStackTrace();
                                 }
@@ -292,7 +342,6 @@ public class YuzTanimaUygulamasi extends JFrame {
                             Imgproc.rectangle(frame, yuzDikdortgeni.tl(), yuzDikdortgeni.br(), new Scalar(255, 0, 0), 2); // Sadece Mavi çerçeve çizer
                         }
 
-
                         griYuz.release();
                         kirpilmisYuz.release();
                         boyutlandirilmisYuz.release();
@@ -300,8 +349,7 @@ public class YuzTanimaUygulamasi extends JFrame {
 
                     //matrisi resme çevir
                     BufferedImage Resim = mat2BufferedImage(frame);
-
-                    //yazı sil resim koy 
+                    //yazı sil resim koy
                     SwingUtilities.invokeLater(() -> kameraEkrani.setIcon(new ImageIcon(Resim)));
                 }
             }
@@ -358,6 +406,8 @@ public class YuzTanimaUygulamasi extends JFrame {
 }
 // kodu başlatmak ==
 /*
-java -cp ".;lib\opencv-4120.jar" "-Djava.library.path=." YuzTanimaUygulamasi
+
+javac -cp ".;lib\opencv-4120.jar;lib\sqlite-jdbc.jar" YuzTanimaUygulamasi.java
+java -cp ".;lib\opencv-4120.jar;lib\sqlite-jdbc.jar" "-Djava.library.path=." YuzTanimaUygulamasi
+
 */
-""
